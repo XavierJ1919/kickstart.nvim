@@ -207,6 +207,36 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+-- python setup
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'python', -- filetype for which to run the autocmd
+  callback = function()
+    -- use pep8 standards
+    vim.opt_local.expandtab = true
+    vim.opt_local.shiftwidth = 4
+    vim.opt_local.tabstop = 4
+    vim.opt_local.softtabstop = 4
+
+    -- folds based on indentation https://neovim.io/doc/user/fold.html#fold-indent
+    -- if you are a heavy user of folds, consider using `nvim-ufo`
+    -- vim.opt_local.foldmethod = 'indent'
+
+    local iabbrev = function(lhs, rhs)
+      vim.keymap.set('ia', lhs, rhs, { buffer = true })
+    end
+    -- automatically capitalize boolean values. Useful if you come from a
+    -- different language, and lowercase them out of habit.
+    iabbrev('true', 'True')
+    iabbrev('false', 'False')
+
+    -- in the same way, we can fix habits regarding comments or None
+    iabbrev('--', '#')
+    iabbrev('null', 'None')
+    iabbrev('none', 'None')
+    iabbrev('nil', 'None')
+  end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -241,6 +271,7 @@ require('lazy').setup({
   --    require('Comment').setup({})
 
   -- "gc" to comment visual regions/lines
+  -- "gb" to comment using block mode;
   { 'numToStr/Comment.nvim', opts = {} },
 
   -- Here is a more advanced example where we pass configuration
@@ -434,6 +465,7 @@ require('lazy').setup({
       -- used for completion, annotations and signatures of Neovim apis
       { 'folke/neodev.nvim', opts = {} },
     },
+
     config = function()
       -- Brief aside: **What is LSP?**
       --
@@ -536,6 +568,32 @@ require('lazy').setup({
           end
         end,
       })
+      --[[
+      init = function()
+        require('lspconfig').pyright.setup {
+          capabilities = lspCapabilities,
+        }
+        require('lspconfig').taplo.setup {
+          capabilities = lspCapabilities,
+        }
+        -- ruff uses an LSP proxy, therefore it needs to be enabled as if it
+        -- were a LSP. In practice, ruff only provides linter-like diagnostics
+        -- and some code actions, and is not a full LSP yet.
+        require('lspconfig').ruff_lsp.setup {
+          -- organize imports disabled, since we are already using `isort` for that
+          -- alternative, this can be enabled to make `organize imports`
+          -- available as code action
+          settings = {
+            organizeImports = false,
+          },
+          -- disable ruff as hover provider to avoid conflicts with pyright
+          on_attach = function(client)
+            client.server_capabilities.hoverProvider = false
+          end,
+        }
+      end
+      ]]
+      --
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
@@ -557,7 +615,7 @@ require('lazy').setup({
         -- clangd = {},
         -- gopls = {},
         -- pyright = {},
-        rust_analyzer = {},
+        -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -596,6 +654,13 @@ require('lazy').setup({
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
         'stylua', -- Used to format Lua code
+        -- python setup
+        'pyright',
+        'ruff_lsp',
+        'debugpy',
+        'black',
+        'isort',
+        'taplo',
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
@@ -642,7 +707,7 @@ require('lazy').setup({
       formatters_by_ft = {
         lua = { 'stylua' },
         -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'isort', 'black' },
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
@@ -762,18 +827,19 @@ require('lazy').setup({
     -- change the command in the config to whatever the name of that colorscheme is.
     --
     -- If you want to see what colorschemes are already installed, you can use `:Telescope colorscheme`.
-    -- 'folke/tokyonight.nvim',
-    'echasnovski/mini.nvim',
+    'folke/tokyonight.nvim',
+    --'savq/melange-nvim',
     priority = 1000, -- Make sure to load this before all the other start plugins.
     init = function()
       -- Load the colorscheme here.
       -- Like many other themes, this one has different styles, and you could load
-      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-      -- vim.cmd.colorscheme 'tokyonight-night'
-      vim.cmd.colorscheme 'minischeme'
-
-      -- You can configure highlights by doing something like:
-      vim.cmd.hi 'Comment gui=none'
+      -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day', 'tokyonight-night'.
+      vim.cmd.colorscheme 'tokyonight-day'
+      --vim.cmd.colorscheme 'savq/melange-nvim'
+      vim.opt.termguicolors =
+        true,
+        -- You can configure highlights by doing something like:
+        vim.cmd.hi 'Comment gui=none'
     end,
   },
 
@@ -866,7 +932,7 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
